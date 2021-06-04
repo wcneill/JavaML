@@ -2,17 +2,15 @@ package clustering;
 
 import org.nd4j.linalg.api.ndarray.INDArray;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Clustering {
 
-  private List<List<Integer>> clusters = new ArrayList<>();
-  private int k;
+  private List<List<Integer>> clusters;
 
-  public abstract void fit();
+  public abstract void fit(INDArray data);
 
-  public abstract void cluster();
+  public abstract void cluster(INDArray data);
 
 
 

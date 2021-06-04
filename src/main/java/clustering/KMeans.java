@@ -17,29 +17,42 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class KMeans {
+public class KMeans extends Clustering{
 
-	INDArray centroids = null;
-	List<List<Integer>> clusters;
+	private int k;
+	private boolean fit;
+	private INDArray centroids = null;
+	private List<List<Integer>> clusters;
 
 	public KMeans() {
+		this.fit = false;
 		this.clusters = new ArrayList<>();
 	}
 
-	public void fit(INDArray data, int k) {
+	/**
+	 * This method is where the K-means algorithm runs.
+	 *
+	 * <p>Classic K-means runs in three steps: Initialize k centroids, assign data to those k centroids, update the
+	 * value of those k-medoids. In this implementation, those three steps are the init, assign and update methods.
+	 *
+	 * @param data The data to fit K-means to.
+	 */
+	public void fit(INDArray data) {
 
-		// Initial step (Forgy Method): randomly choose k data points as initial means.
-		init(k, data);
+		if (k != 0) {
+			init(k, data);
 
-		// Convergence criteria: Assignment step does not result in a change.
-		boolean changed = true;
+			boolean changed = true;
+			while (changed) {
+				changed = assign(data);
+				update(data);
+			}
 
-		while (changed) {
-			changed = assign(data);
-			update(data);
+			fit = true;
+		} else {
+			System.out.println("Please use the setK() method before running fit().");
 		}
 	}
-
 
 	/**
 	 * Forgy method of initial selection of k-means.
@@ -61,8 +74,8 @@ public class KMeans {
 
 	/**
 	 * Perform the assignment step of K-Means clustering.
-	 * <p>
-	 * For each point in the dataset, finds the closest centroid and assigns that data point
+	 *
+	 * <p>For each point in the dataset, finds the closest centroid and assigns that data point
 	 * to the corresponding cluster.
 	 *
 	 * @param data The data to cluster.
@@ -89,8 +102,8 @@ public class KMeans {
 
 	/**
 	 * Performs the centroid update step of K-Means.
-	 * <p>
-	 * Calculates new centroids based on assignment of new points to a cluster.
+	 *
+	 * <p>Calculates new centroids based on assignment of new points to a cluster.
 	 *
 	 * @param data The dataset being clustered.
 	 */
@@ -109,6 +122,19 @@ public class KMeans {
 			centroids.putRow(i, mean);
 			i++;
 		}
+	}
+
+	/**
+	 * This method sets the value of k for the first time or updates it. If the model has
+	 * already been fit, setting a new k will clear the existing clusters and the model must
+	 * be re-fit.
+	 *
+	 * @param k
+	 */
+	public void setK(int k) {
+		fit = false;
+		clusters.clear();
+		this.k = k;
 	}
 
 	public void cluster(INDArray data) {
@@ -145,7 +171,8 @@ public class KMeans {
 
 		// --------------------- Run K-means ----------------------//
 		KMeans km = new KMeans();
-		km.fit(input, 3);
+		km.setK(3);
+		km.fit(input);
 
 		// ------------ Append Predictions as New Column ---------//
 		DoubleColumn preds = DoubleColumn.create("Predictions", df.rowCount());
@@ -172,8 +199,7 @@ public class KMeans {
 		for (int j = 0; j < 3; j++) {
 
 			type = df.where(
-					df.doubleColumn("Predictions")
-							.isEqualTo(j)
+					df.doubleColumn("Predictions").isEqualTo(j)
 			);
 
 			double[] xData = type.doubleColumn(2).asDoubleArray();
