@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class KMeans extends Clustering{
+public class KMeans extends Clustering {
 
 	private int k;
 	private boolean fit;
@@ -140,7 +140,7 @@ public class KMeans extends Clustering{
 	public void cluster(INDArray data) {
 		//TODO Check if fit was performed.
 		//TODO If yes, compute correct cluster for each data point;
-		//TODO update
+		//TODO
 	}
 
 	public static void main(String[] args) {
@@ -150,10 +150,10 @@ public class KMeans extends Clustering{
 		String path = "iris.csv";
 
 		CsvReadOptions options =
-				CsvReadOptions.builder(path)
-						.separator(',')
-						.header(false)
-						.build();
+			CsvReadOptions.builder(path)
+				.separator(',')
+				.header(false)
+				.build();
 
 		try {
 			df = Table.read().usingOptions(options);
@@ -199,7 +199,7 @@ public class KMeans extends Clustering{
 		for (int j = 0; j < 3; j++) {
 
 			type = df.where(
-					df.doubleColumn("Predictions").isEqualTo(j)
+				df.doubleColumn("Predictions").isEqualTo(j)
 			);
 
 			double[] xData = type.doubleColumn(2).asDoubleArray();

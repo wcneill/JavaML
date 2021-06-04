@@ -12,6 +12,8 @@ public abstract class Clustering {
 
   public abstract void cluster(INDArray data);
 
-
+  public List<List<Integer>> getClusters(){
+    return clusters;
+  }
 
 }

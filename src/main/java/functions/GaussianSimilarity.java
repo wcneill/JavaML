@@ -6,7 +6,7 @@ import org.nd4j.linalg.ops.transforms.Transforms;
 
 public class GaussianSimilarity extends Function{
 
-	double gamma;
+	private double gamma;
 
 	public GaussianSimilarity(){
 		this.gamma = 1;
