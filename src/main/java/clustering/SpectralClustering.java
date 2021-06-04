@@ -27,11 +27,21 @@ public class SpectralClustering {
   public void fit(INDArray data){
 	//TODO calculate similarity graph, compute Laplacian
     //TODO pass Laplacian to internal model fit() method.
-    //
   }
 
-  public void cluster(INDArray data, Clustering algo) {
-	//TODO check for fit, if present run k-means on Laplacian
+  public void cluster(INDArray data) {
+	//TODO check for fit, if present run internal model on data.
+  }
+
+  private void getLaplacian(){
+    // TODO Calculate Similarity Matrix A
+    // TODO Calculate Diagonal Matrix D
+    // TODO Calculates Laplacian D - A;
+  }
+
+  private INDArray getSimMatrix(){
+    //TODO Use similarity function to calculate Similarity Matrix A
+    return null;
   }
 
 }
