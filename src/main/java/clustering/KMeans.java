@@ -1,16 +1,16 @@
 package clustering;
 
-
-import org.knowm.xchart.*;
+import org.knowm.xchart.SwingWrapper;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.XYSeries;
 import org.nd4j.linalg.api.ndarray.INDArray;
-
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.api.Table;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.io.csv.CsvReadOptions;
-
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -72,13 +72,12 @@ public class KMeans {
 		INDArray currPoint;
 		INDArray distances;
 		boolean changed = false;
+		int closest;
 
 		for (int j = 0; j < data.rows(); j++) {
-
 			currPoint = data.getRow(j).reshape(1, data.columns());
-
 			distances = Transforms.allEuclideanDistances(currPoint, centroids, 1).mul(-1);
-			int closest = distances.argMax(1).getInt();
+			closest = distances.argMax(1).getInt();
 
 			if (!clusters.get(closest).contains(j)) {
 				clusters.get(closest).add(j);
@@ -126,9 +125,9 @@ public class KMeans {
 
 		CsvReadOptions options =
 				CsvReadOptions.builder(path)
-				.separator(',')
-				.header(false)
-				.build();
+						.separator(',')
+						.header(false)
+						.build();
 
 		try {
 			df = Table.read().usingOptions(options);
@@ -152,7 +151,7 @@ public class KMeans {
 		DoubleColumn preds = DoubleColumn.create("Predictions", df.rowCount());
 
 		int i = 0;
-		for (List<Integer> cluster : km.clusters){
+		for (List<Integer> cluster : km.clusters) {
 			int[] idxs = cluster.stream().mapToInt(Integer::valueOf).toArray();
 			for (int ix : idxs) {
 				preds.set(ix, i);
@@ -170,7 +169,7 @@ public class KMeans {
 		chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
 
 
-		for (int j = 0; j < 3; j++){
+		for (int j = 0; j < 3; j++) {
 
 			type = df.where(
 					df.doubleColumn("Predictions")
@@ -184,7 +183,7 @@ public class KMeans {
 			chart.addSeries(seriesName, xData, yData);
 		}
 
-		new SwingWrapper<XYChart>(chart).displayChart();
+		new SwingWrapper<>(chart).displayChart();
 	}
 
 }
