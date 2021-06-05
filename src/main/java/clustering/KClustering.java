@@ -4,7 +4,9 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 
 import java.util.List;
 
-public abstract class Clustering {
+public abstract class KClustering {
+
+  private int k;
 
   private List<List<Integer>> clusters;
 
@@ -12,8 +14,7 @@ public abstract class Clustering {
 
   public abstract void cluster(INDArray data);
 
-  public List<List<Integer>> getClusters(){
-    return clusters;
-  }
+  public abstract List<List<Integer>> getClusters();
 
+  public abstract void setK(int k);
 }

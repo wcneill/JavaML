@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class KMeans extends Clustering {
+public class KMeans extends KClustering {
 
 	private int k;
 	private boolean fit;
@@ -135,6 +135,11 @@ public class KMeans extends Clustering {
 		fit = false;
 		clusters.clear();
 		this.k = k;
+	}
+
+	@Override
+	public List<List<Integer>> getClusters() {
+		return this.clusters;
 	}
 
 	public void cluster(INDArray data) {
