@@ -81,7 +81,6 @@ public class SpectralClustering {
         // calculate similarity score between data points
         double simScore = this.SimilarityFunction.compute(input.getRow(i), input.getRow(j));
         similarity.put(i, j, simScore);
-        similarity.put(j, i, simScore);
       }
     }
     return similarity;
