@@ -18,8 +18,7 @@ public class GaussianSimilarity extends Function{
 
 	public double compute(INDArray x, INDArray y){
 		double distanceSqr = Math.pow(Transforms.euclideanDistance(x, y), 2);
-		double result = Math.exp(-1 * gamma * distanceSqr);
-		return result;
+		return Math.exp(-1 * gamma * distanceSqr);
 	}
 
 	public void setGamma(double g){

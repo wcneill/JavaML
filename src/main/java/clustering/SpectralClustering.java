@@ -19,7 +19,6 @@ import utils.NdUtils;
 import java.io.IOException;
 import java.util.List;
 
-
 public class SpectralClustering {
 
   private int k;
@@ -27,6 +26,12 @@ public class SpectralClustering {
   private Function SimilarityFunction;
   private INDArray laplacian;
 
+  /**
+   * Construct a wrapper around the given K-clusters (i.e. K-means or K-medoids) that will fit
+   * a laplacian matrix and pass its eigenvectors to said model for clustering.
+   *
+   * @param model
+   */
   public SpectralClustering(KClustering model) {
     this.SimilarityFunction = new GaussianSimilarity();
     this.model = model;
@@ -170,6 +175,5 @@ public class SpectralClustering {
     }
 
     new SwingWrapper<>(chart).displayChart();
-
   }
 }

@@ -16,5 +16,7 @@ public abstract class KClustering {
 
   public abstract List<List<Integer>> getClusters();
 
-  public abstract void setK(int k);
+  public void setK(int k) {
+    this.k = k;
+  }
 }
