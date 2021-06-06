@@ -29,6 +29,11 @@ public class KMeans extends KClustering {
         this.clusters = new ArrayList<>();
     }
 
+    /**
+     * Runs the K-means algorithm the number of times determined by `trials`, selecting the best run
+     * based on
+     * @param data
+     */
     public void fit(INDArray data) {
 
         double bestVariance = Double.MAX_VALUE;
@@ -48,7 +53,7 @@ public class KMeans extends KClustering {
 
                 totalVariance += clusterVariance;
             }
-            System.out.println("Run " + i + "var: " + totalVariance);
+            System.out.println("Run " + i + " var: " + totalVariance);
             if (totalVariance < bestVariance) {
                 bestVariance = totalVariance;
                 bestCentroids = centroids.dup();

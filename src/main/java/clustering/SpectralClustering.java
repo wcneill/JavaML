@@ -18,6 +18,7 @@ import tech.tablesaw.io.csv.CsvReadOptions;
 import utils.NdUtils;
 
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -76,6 +77,8 @@ public class SpectralClustering {
             //TODO get eigenvector matrix U from Laplacian.
             INDArray eigenvectors = laplacian.dup();
             this.eigenvalues = Eigen.symmetricGeneralizedEigenvalues(eigenvectors);
+            System.out.println("Eigenvalues: ");
+            System.out.println(this.eigenvalues);
             eigenvectors.transposei(); // vects are now rows, for easier sorting.
 
             //TODO sort eigenvector matrix U according ascending eigenvalues.
@@ -93,16 +96,6 @@ public class SpectralClustering {
             System.out.println("Please use the setK() method before running fit().");
         }
 
-    }
-
-    /**
-     * Compute the nearest centroid or medoid based on pre-fit internal model.
-     *
-     * @param data The data to cluster.
-     */
-    public List<List<Integer>> cluster(INDArray data) {
-        //TODO check for fit, if present run internal model on data.
-        return null;
     }
 
     /**
@@ -151,6 +144,16 @@ public class SpectralClustering {
     }
 
     /**
+     * Compute the nearest centroid or medoid based on pre-fit internal model.
+     *
+     * @param data The data to cluster.
+     */
+    public List<List<Integer>> cluster(INDArray data) {
+        //TODO check for fit, if present run internal model on data.
+        return null;
+    }
+
+    /**
      * Returns the internal model's clusters of the fit data.
      *
      * @return A List of Lists, where each of k inner lists contains the indices of the data
@@ -194,7 +197,6 @@ public class SpectralClustering {
     public void plotEigs() {
 
         if (fit) {
-
             // init chart object.
             XYChart chart = new XYChartBuilder()
                     .width(1200).height(600)
@@ -301,5 +303,13 @@ public class SpectralClustering {
         System.out.println("Spectral gap at eigenvalue: " + sc.computeSpectralGap());
         sc.plotEigs();
         new SwingWrapper<>(chart).displayChart();
+
+        try {
+            Nd4j.saveBinary(sc.laplacian, new File("Laplacian"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
     }
 }
