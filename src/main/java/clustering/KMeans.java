@@ -20,12 +20,10 @@ import java.util.Random;
 public class KMeans extends KClustering {
 
 	private int k;
-	private boolean fit;
 	private INDArray centroids = null;
 	private List<List<Integer>> clusters;
 
 	public KMeans() {
-		this.fit = false;
 		this.clusters = new ArrayList<>();
 	}
 
@@ -48,7 +46,6 @@ public class KMeans extends KClustering {
 				update(data);
 			}
 
-			fit = true;
 		} else {
 			System.out.println("Please use the setK() method before running fit().");
 		}
@@ -132,16 +129,27 @@ public class KMeans extends KClustering {
 	 * @param k
 	 */
 	public void setK(int k) {
-		fit = false;
 		clusters.clear();
 		this.k = k;
 	}
 
+	/**
+	 * Returns the model's current clusters based on last fit.
+	 *
+	 * @return A list of lists, where each of k inner lists contains the indices of the data that
+	 * belongs to it.
+	 */
 	@Override
 	public List<List<Integer>> getClusters() {
 		return this.clusters;
 	}
 
+	/**
+	 * Compute the nearest centroid or medoid based on pre-fit internal model.
+	 *
+	 * @param data The data to cluster.
+	 */
+	@Override
 	public void cluster(INDArray data) {
 		//TODO Check if fit was performed.
 		//TODO If yes, compute correct cluster for each data point;
