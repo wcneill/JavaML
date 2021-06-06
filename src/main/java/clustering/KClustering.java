@@ -12,8 +12,6 @@ public abstract class KClustering {
 
   public abstract void fit(INDArray data);
 
-  public abstract void cluster(INDArray data);
-
   public abstract List<List<Integer>> getClusters();
 
   public void setK(int k) {

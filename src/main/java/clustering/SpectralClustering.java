@@ -35,7 +35,7 @@ public class SpectralClustering {
      * Construct a wrapper around the given KClusters model (i.e. K-means or K-medoids) that will fit
      * a laplacian matrix and pass its eigenvectors to said model for clustering.
      *
-     * The default Gaussian similarity function is used for creating the affinity matrix.
+     * <p>The default Gaussian similarity function is used for creating the affinity matrix.
      *
      * @param model The KClustering model to fit/predict with after spectral
      *              decomposition of data.
@@ -50,10 +50,10 @@ public class SpectralClustering {
      * Construct a wrapper around the given KClusters model (i.e. K-means or K-medoids) that will fit
      * a laplacian matrix and pass its eigenvectors to said model for clustering.
      *
-     * Allows for the passing of a custom similarity function.
+     * <p>Allows for the passing of a custom similarity function.
      *
      * @param model The KClusters model to use after spectral decomposition.
-     * @param f The desired similarity function used to create the affinity matrix.
+     * @param f     The desired similarity function used to create the affinity matrix.
      */
     public SpectralClustering(KClustering model, Function f) {
         this.model = model;
@@ -154,7 +154,7 @@ public class SpectralClustering {
      * Returns the internal model's clusters of the fit data.
      *
      * @return A List of Lists, where each of k inner lists contains the indices of the data
-     *  belonging to that cluster.
+     * belonging to that cluster.
      */
     public List<List<Integer>> getClusters() {
         return model.getClusters();
@@ -172,65 +172,65 @@ public class SpectralClustering {
         fit = false;
     }
 
-   public int computeSpectralGap(){
+    public int computeSpectralGap() {
 
         double[] candidates;
 
-        if (fit){
+        if (fit) {
             candidates = new double[(int) eigenvalues.length()];
 
-            for (int i = 1; i < eigenvalues.length(); i++){
+            for (int i = 1; i < eigenvalues.length(); i++) {
                 double curr = eigenvalues.getDouble(i);
                 double last = eigenvalues.getDouble(i - 1);
-                candidates[i-1] = curr - last;
+                candidates[i - 1] = curr - last;
             }
             return 1 + Nd4j.createFromArray(candidates).argMax(0).getInt(0);
         } else {
             System.out.println("Ensure that you have set k and run fit before running this analysis.");
             return -1;
         }
-   }
+    }
 
-   public void plotEigs(){
+    public void plotEigs() {
 
-       if (fit) {
+        if (fit) {
 
-           // init chart object.
-           XYChart chart = new XYChartBuilder()
-                   .width(1200).height(600)
-                   .title("Eigenvalue Gap Analysis")
-                   .yAxisTitle("Eigenvalues")
-                   .build();
-           chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
+            // init chart object.
+            XYChart chart = new XYChartBuilder()
+                    .width(1200).height(600)
+                    .title("Eigenvalue Gap Analysis")
+                    .yAxisTitle("Eigenvalues")
+                    .build();
+            chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
 
-           // Eigenvalue data.
-           double[] xData = Nd4j.arange(0, eigenvalues.length()).toDoubleVector();
-           double[] yData = eigenvalues.toDoubleVector();
+            // Eigenvalue data.
+            double[] xData = Nd4j.arange(0, eigenvalues.length()).toDoubleVector();
+            double[] yData = eigenvalues.toDoubleVector();
 
-           // Get placement of spectral gap marker.
-           int gapIndex = computeSpectralGap();
-           double gapWidth = yData[gapIndex] - yData[gapIndex - 1];
-           double lineValue = yData[gapIndex - 1] + 0.5 * gapWidth;
+            // Get placement of spectral gap marker.
+            int gapIndex = computeSpectralGap();
+            double gapWidth = yData[gapIndex] - yData[gapIndex - 1];
+            double lineValue = yData[gapIndex - 1] + 0.5 * gapWidth;
 
-           // Horizontal line, marking the spectral gap.
-           double[] xGap = Nd4j.arange(eigenvalues.length()).toDoubleVector();
-           double[] yGap = Nd4j.zeros(eigenvalues.length()).add(lineValue).toDoubleVector();
+            // Horizontal line, marking the spectral gap.
+            double[] xGap = Nd4j.arange(eigenvalues.length()).toDoubleVector();
+            double[] yGap = Nd4j.zeros(eigenvalues.length()).add(lineValue).toDoubleVector();
 
-           // Add data to chart.
-           chart.addSeries("Eigenvalues of Graph Laplacian", xData, yData);
-           chart.addSeries("Spectral Gap", xGap, yGap)
-                   .setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line)
-                   .setMarker(new None())
-                   .setLineColor(new Color(255, 0, 0))
-                   .setLineWidth(4);
+            // Add data to chart.
+            chart.addSeries("Eigenvalues of Graph Laplacian", xData, yData);
+            chart.addSeries("Spectral Gap", xGap, yGap)
+                    .setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line)
+                    .setMarker(new None())
+                    .setLineColor(new Color(255, 0, 0))
+                    .setLineWidth(4);
 
-           // Display the chart
-           new SwingWrapper<>(chart).displayChart();
-       } else {
-           System.out.println("Ensure that you have set k and run fit before running this analysis.");
-       }
+            // Display the chart
+            new SwingWrapper<>(chart).displayChart();
+        } else {
+            System.out.println("Ensure that you have set k and run fit before running this analysis.");
+        }
 
-   }
+    }
 
     public static void main(String[] args) {
         // --------------- Read in CSV Data -------------//
@@ -259,6 +259,7 @@ public class SpectralClustering {
 
         // --------------  Run Spectral Clustering --------------//
         KMeans km = new KMeans();
+        km.setTrials(10);
         SpectralClustering sc = new SpectralClustering(km);
         sc.setK(3);
         sc.fit(input);
