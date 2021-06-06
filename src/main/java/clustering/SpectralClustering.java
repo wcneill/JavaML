@@ -6,6 +6,7 @@ import org.knowm.xchart.SwingWrapper;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
 import org.knowm.xchart.XYSeries;
+import org.knowm.xchart.style.markers.None;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.eigen.Eigen;
 import org.nd4j.linalg.factory.Nd4j;
@@ -16,15 +17,19 @@ import tech.tablesaw.columns.Column;
 import tech.tablesaw.io.csv.CsvReadOptions;
 import utils.NdUtils;
 
+import java.awt.*;
 import java.io.IOException;
 import java.util.List;
 
 public class SpectralClustering {
 
     private int k;
+    private boolean fit;
     private final KClustering model;
     private Function SimilarityFunction;
     private INDArray laplacian;
+    private INDArray eigenvalues;
+
 
     /**
      * Construct a wrapper around the given KClusters model (i.e. K-means or K-medoids) that will fit
@@ -38,6 +43,7 @@ public class SpectralClustering {
     public SpectralClustering(KClustering model) {
         this.SimilarityFunction = new GaussianSimilarity();
         this.model = model;
+        this.fit = false;
     }
 
     /**
@@ -52,6 +58,7 @@ public class SpectralClustering {
     public SpectralClustering(KClustering model, Function f) {
         this.model = model;
         this.SimilarityFunction = f;
+        this.fit = false;
     }
 
     /**
@@ -68,7 +75,7 @@ public class SpectralClustering {
 
             //TODO get eigenvector matrix U from Laplacian.
             INDArray eigenvectors = laplacian.dup();
-            INDArray eigenvalues = Eigen.symmetricGeneralizedEigenvalues(eigenvectors);
+            this.eigenvalues = Eigen.symmetricGeneralizedEigenvalues(eigenvectors);
             eigenvectors.transposei(); // vects are now rows, for easier sorting.
 
             //TODO sort eigenvector matrix U according ascending eigenvalues.
@@ -81,6 +88,7 @@ public class SpectralClustering {
 
             //TODO pass U' to internal model fit() method.
             model.fit(uPrime);
+            fit = true;
         } else {
             System.out.println("Please use the setK() method before running fit().");
         }
@@ -161,7 +169,68 @@ public class SpectralClustering {
     public void setK(int k) {
         this.k = k;
         this.model.setK(k);
+        fit = false;
     }
+
+   public int computeSpectralGap(){
+
+        double[] candidates;
+
+        if (fit){
+            candidates = new double[(int) eigenvalues.length()];
+
+            for (int i = 1; i < eigenvalues.length(); i++){
+                double curr = eigenvalues.getDouble(i);
+                double last = eigenvalues.getDouble(i - 1);
+                candidates[i-1] = curr - last;
+            }
+            return 1 + Nd4j.createFromArray(candidates).argMax(0).getInt(0);
+        } else {
+            System.out.println("Ensure that you have set k and run fit before running this analysis.");
+            return -1;
+        }
+   }
+
+   public void plotEigs(){
+
+       if (fit) {
+
+           // init chart object.
+           XYChart chart = new XYChartBuilder()
+                   .width(1200).height(600)
+                   .title("Eigenvalue Gap Analysis")
+                   .yAxisTitle("Eigenvalues")
+                   .build();
+           chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
+
+           // Eigenvalue data.
+           double[] xData = Nd4j.arange(0, eigenvalues.length()).toDoubleVector();
+           double[] yData = eigenvalues.toDoubleVector();
+
+           // Get placement of spectral gap marker.
+           int gapIndex = computeSpectralGap();
+           double gapWidth = yData[gapIndex] - yData[gapIndex - 1];
+           double lineValue = yData[gapIndex - 1] + 0.5 * gapWidth;
+
+           // Horizontal line, marking the spectral gap.
+           double[] xGap = Nd4j.arange(eigenvalues.length()).toDoubleVector();
+           double[] yGap = Nd4j.zeros(eigenvalues.length()).add(lineValue).toDoubleVector();
+
+           // Add data to chart.
+           chart.addSeries("Eigenvalues of Graph Laplacian", xData, yData);
+           chart.addSeries("Spectral Gap", xGap, yGap)
+                   .setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line)
+                   .setMarker(new None())
+                   .setLineColor(new Color(255, 0, 0))
+                   .setLineWidth(4);
+
+           // Display the chart
+           new SwingWrapper<>(chart).displayChart();
+       } else {
+           System.out.println("Ensure that you have set k and run fit before running this analysis.");
+       }
+
+   }
 
     public static void main(String[] args) {
         // --------------- Read in CSV Data -------------//
@@ -228,7 +297,8 @@ public class SpectralClustering {
             String seriesName = String.format("Classification %d", j);
             chart.addSeries(seriesName, xData, yData);
         }
-
+        System.out.println("Spectral gap at eigenvalue: " + sc.computeSpectralGap());
+        sc.plotEigs();
         new SwingWrapper<>(chart).displayChart();
     }
 }
