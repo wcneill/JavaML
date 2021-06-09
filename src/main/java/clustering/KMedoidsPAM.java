@@ -35,15 +35,15 @@ public class KMedoidsPAM extends KClustering {
 	}
 
 	private void swap() {
-		//TODO: MX = cartesian_product(M, X - M)
-		//TODO for each (m, x_i) in MX:
-			//TODO: average_loss = []
-				//TODO: for each x_j in X
-					//TODO: compute d = min(d(x_i, x_j), d(m_c(x_j), x_j)) --> note: second distance must exclude current medoid m
-					//TODO: total_d += d;
-				//TODO: average_loss[i] = total_d / len(MX)
-			//TODO: Swap = argmin(average_loss)
+		//TODO: Calculate cost of medoids from build step.
+		//TODO: current_loss = loss(medoids)
 
+		//TODO: While cost is decreasing:
+			//TODO: cost = swapNext()
+			//TODO: if cost < current_loss
+				//TODO: current_loss = cost
+			//TODO: else:
+				//TODO: break;
 	}
 
 	private int getNextMedoid(){
@@ -57,7 +57,27 @@ public class KMedoidsPAM extends KClustering {
 		return -1;
 	}
 
-	private int getClosestMedoid(INDArray x, Set<Integer> M) {
+	private double swapNext(){
+		//TODO: MX = cartesian_product(M, X - M)
+		//TODO: average_loss = []
+
+		//TODO: for each (m, x_i) in MX:
+			//TODO: for each x_j in X
+				//TODO: compute d = min(d(x_i, x_j), d(m_c(x_j), x_j)) --> note: second distance must exclude current medoid m
+				//TODO: total_d += d;
+			//TODO: average_loss[i] = total_d / len(MX)
+
+		//TODO: swap = argmin(average_loss)
+		//TODO: swapCost = average_loss[swap]
+
+		//TODO: add x_i to M
+		//TODO: remove m from M
+
+		//TODO: return swapCost;
+		return -1.0;
+	}
+
+	private int getClosestObject(INDArray x, Set<Integer> M) {
 		//TODO
 		return -1;
 	}
