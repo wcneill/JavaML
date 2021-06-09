@@ -310,7 +310,5 @@ public class SpectralClustering {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
     }
 }

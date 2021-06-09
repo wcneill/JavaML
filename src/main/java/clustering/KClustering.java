@@ -7,7 +7,6 @@ import java.util.List;
 public abstract class KClustering {
 
   private int k;
-
   private List<List<Integer>> clusters;
 
   public abstract void fit(INDArray data);
