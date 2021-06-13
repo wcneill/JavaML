@@ -1,26 +1,36 @@
 package clustering;
 
+import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
+import functions.Function;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class KMedoidsPAM extends KClustering {
 
 	private final int k = 10;
-	private INDArray medoids;
-	private final List<List<Integer>> clusters;
 
-	public KMedoidsPAM() {
-		this.clusters = new ArrayList<>();
+	private Set<Integer> X;
+	private Set<Integer> medoids;
+	private final Set<Set<Integer>> clusters;
+	private final Function similarityFunc;
+
+	public KMedoidsPAM(Function f) {
+		this.medoids = new HashSet<>();
+		this.clusters = new HashSet<>();
+		this.similarityFunc = f;
 	}
 
 	@Override
 	public void fit(INDArray data) {
+		// TODO: Greedy choice of first medoid:
+		init(data);
 		//TODO: Build Step
+		build(data);
 		//TODO: Swap Step
-
+		swap(data);
 	}
 
 	@Override
@@ -28,19 +38,49 @@ public class KMedoidsPAM extends KClustering {
 		return null;
 	}
 
-	private void build() {
+	/**
+	 * Initializes the first medoid of the dataset by exhaustively iterating through every
+	 * candidate and finding the value that maximises similarity to all other data points.
+	 *
+	 * @param data The dataset that is being clustered.
+	 */
+	private void init(INDArray data) {
+		int[] idxArr = Nd4j.arange(data.rows()).data().asInt();
+		this.X = Sets.newHashSet(Ints.asList(idxArr));
+		Set<Integer> candidate;
+
+		double bestScore = Double.MAX_VALUE;
+		double currScore;
+		Integer bestMedoid = null;
+
+		for (int x : X){
+			currScore = 0;
+			candidate = Sets.newHashSet(x);
+			for (Integer x_j : Sets.difference(X, candidate)) {
+				currScore += similarityFunc.compute(data.getRow(x), data.getRow(x_j));
+			}
+			if (currScore < bestScore) {
+				bestScore = currScore;
+				bestMedoid = x;
+			}
+		}
+		medoids.add(bestMedoid);
+	}
+
+	private void build(INDArray data) {
 		//TODO: Greedy init medoid l=0
+
 		//TODO: For medoid_l, l=1...k
 			//TODO: greedily assign next medoid.
 	}
 
-	private void swap() {
+	private void swap(INDArray data) {
 		//TODO: Calculate cost of medoids from build step.
 		//TODO: current_loss = loss(medoids)
 
 		//TODO: While cost is decreasing:
 			//TODO: cost = swapNext()
-			//TODO: if cost < current_loss
+			//TODO: if cost < last_loss
 				//TODO: current_loss = cost
 			//TODO: else:
 				//TODO: break;
