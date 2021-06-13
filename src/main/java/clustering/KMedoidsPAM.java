@@ -25,8 +25,6 @@ public class KMedoidsPAM extends KClustering {
 
 	@Override
 	public void fit(INDArray data) {
-		// TODO: Greedy choice of first medoid:
-		init(data);
 		//TODO: Build Step
 		build(data);
 		//TODO: Swap Step
@@ -69,7 +67,7 @@ public class KMedoidsPAM extends KClustering {
 
 	private void build(INDArray data) {
 		//TODO: Greedy init medoid l=0
-
+		init(data);
 		//TODO: For medoid_l, l=1...k
 			//TODO: greedily assign next medoid.
 	}
