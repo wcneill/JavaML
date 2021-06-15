@@ -8,10 +8,12 @@ import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
 import org.knowm.xchart.XYSeries;
 import org.knowm.xchart.style.markers.None;
+import org.nd4j.linalg.api.buffer.DataType;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.eigen.Eigen;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.NDArrayIndex;
+import org.nd4j.linalg.inverse.InvertMatrix;
 import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.api.Table;
 import tech.tablesaw.columns.Column;
@@ -43,6 +45,7 @@ public class SpectralClustering {
      *              decomposition of data.
      */
     public SpectralClustering(KClustering model) {
+        Nd4j.setDefaultDataTypes(DataType.DOUBLE, DataType.DOUBLE);
         this.SimilarityFunction = new GaussianSimilarity();
         this.model = model;
         this.fit = false;
@@ -77,6 +80,7 @@ public class SpectralClustering {
 
             //TODO get eigenvector matrix U from Laplacian.
             INDArray eigenvectors = laplacian.dup();
+            System.out.println(eigenvectors.dataType());
             this.eigenvalues = Eigen.symmetricGeneralizedEigenvalues(eigenvectors);
             System.out.println("Eigenvalues: ");
             System.out.println(this.eigenvalues);
@@ -259,6 +263,7 @@ public class SpectralClustering {
 
         // ----------- Get independent data into Ndarray ----------//
         INDArray input = Nd4j.createFromArray(data);
+        System.out.println(input.dataType());
 
         // --------------  Run Spectral Clustering --------------//
         KMeans km = new KMeans();

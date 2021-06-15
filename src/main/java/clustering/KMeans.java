@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Random;
 
 
-public class KMeans extends KClustering {
+public class KMeans implements KClustering {
 
     private int k;
     private int trials = 10;
@@ -41,7 +41,7 @@ public class KMeans extends KClustering {
         double totalVariance = 0;
         INDArray bestCentroids = null;
 
-        System.out.println("Clustering, trials = " + trials);
+        System.out.println("Clustering: " + trials + " trials");
         for (int i = 0; i < trials; i++) {
             clusters.clear();
             run(data);
@@ -120,7 +120,7 @@ public class KMeans extends KClustering {
         for (int j = 0; j < data.rows(); j++) {
             currPoint = data.getRow(j).reshape(1, data.columns());
             distances = Transforms.allEuclideanDistances(currPoint, centroids, 1).mul(-1);
-            closest = distances.argMax(1).getInt();
+            closest = distances.argMax().getInt();
 
             if (!clusters.get(closest).contains(j)) {
                 clusters.get(closest).add(j);
