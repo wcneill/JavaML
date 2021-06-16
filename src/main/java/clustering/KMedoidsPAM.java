@@ -1,8 +1,10 @@
 package clustering;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import functions.Function;
+import org.apache.commons.compress.utils.Lists;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.ops.transforms.Transforms;
@@ -114,7 +116,14 @@ public class KMedoidsPAM implements KClustering {
 
 	private void swap(INDArray data) {
 		//TODO: Calculate cost of medoids from build step.
-		//TODO: current_loss = loss(medoids)
+
+		boolean improving = true;
+		double bestLoss = getTotalAvgLoss(data);
+		double currLoss;
+
+		while (improving) {
+			currLoss = swapNext();
+		}
 
 		//TODO: While cost is decreasing:
 			//TODO: cost = swapNext()
@@ -134,10 +143,12 @@ public class KMedoidsPAM implements KClustering {
 
 		int searchSize = X.size() - medoids.size();
 		INDArray avgLosses = Nd4j.create(searchSize);
-		double runningLoss = 0;
+		double runningLoss;
 
 		//TODO: for x_i in X - M:
 		for (int i : Sets.difference(X, medoids)) {
+			runningLoss = 0;
+
 			//TODO: for x_j in X:
 			for (int j : X) {
 
@@ -153,11 +164,44 @@ public class KMedoidsPAM implements KClustering {
 		return (avgLosses.mul(-1)).argMax().getInt();
 	}
 
-	private double swapNext(){
-		//TODO: MX = cartesian_product(M, X - M)
-		//TODO: average_loss = []
+	private double swapNext(INDArray data){
+		// Get the cartesian product, that is all pairs of candidates (x, m) to swap.
+		// Then, convert to array list because we cannot index into a set, but we need to later.
+		Set<List<Integer>> product = Sets.cartesianProduct(medoids, Sets.difference(X, medoids));
+		ArrayList<List<Integer>> MX = Lists.newArrayList(product.iterator());
+		INDArray avgLosses = Nd4j.create(MX.size());
+		double runningLoss;
 
 		//TODO: for each (m, x_i) in MX:
+		for (List<Integer> pair : MX) {
+			int mToSwap = pair.get(0);
+			int xToSwap = pair.get(1);
+			runningLoss = 0;
+
+			// temporarily remove candidate medoid in order to test swap with non-medoid candidate.
+			medoids.remove(mToSwap);
+
+			// calculate the reduction in cost of this swap.
+			for (int j : X) {
+				int m = getClosestMedoid(j, data);
+				double d1 = similarityFunc.compute(data.getRow(xToSwap), data.getRow(j));
+				double d2 = similarityFunc.compute(data.getRow(m), data.getRow(j));
+				double d = Math.min(d1, d2);
+				runningLoss += d;
+			}
+
+			// calculate average drop in cost of the current swap.
+			avgLosses.put(0, xToSwap, runningLoss / X.size());
+			// put the candidate medoid back.
+			medoids.add(mToSwap);
+		}
+
+		int swapPairIdx = avgLosses.mul(-1).argMax().getInt();
+		List<Integer> pairToSwap = MX.get(swapPairIdx);
+		medoids.remove(pairToSwap.get(0));
+		medoids.add(pairToSwap.get(1));
+
+
 			//TODO: for each x_j in X
 				//TODO: compute d = min(d(x_i, x_j), d(m_c(x_j), x_j)) --> note: second distance must exclude current medoid m
 				//TODO: total_d += d;
@@ -197,9 +241,10 @@ public class KMedoidsPAM implements KClustering {
 	}
 
 	/**
-	 * Finds the average distance
-	 * @param data
-	 * @return
+	 * Finds the total average distance between each cluster's medoid and the points belonging to those clusters.
+	 *
+	 * @param data the data being clustered.
+	 * @return The sum of similarities of all points to their medoids, divided by the number of points.
 	 */
 	private double getTotalAvgLoss(INDArray data) {
 		double similaritySum = 0;
@@ -207,12 +252,13 @@ public class KMedoidsPAM implements KClustering {
 			// indexes of all the data points belonging to this cluster.
 			int[] idxs = clusters.get(m).stream().mapToInt(Integer::intValue).toArray();
 			INDArray medoidObject = data.getRow(m).reshape(1, data.columns());
-			INDArray clusteredObjects = data.getRows(idxs);
 
-			//TODO: Calculate the sum of similarities between each point and this cluster's medoid.
+			//Calculate the sum of similarities between each point and this cluster's medoid.
+			for (int x : idxs) {
+				similaritySum += similarityFunc.compute(data.getRow(x), medoidObject);
+			}
 		}
-		//TODO: return the average value of similarities.
-		return -1;
+		return similaritySum / k;
 	}
 
 	public static void main(String[] args) {
