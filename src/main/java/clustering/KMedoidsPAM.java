@@ -114,25 +114,6 @@ public class KMedoidsPAM implements KClustering {
 		}
 	}
 
-	private void swap(INDArray data) {
-		//TODO: Calculate cost of medoids from build step.
-
-		boolean improving = true;
-		double bestLoss = getTotalAvgLoss(data);
-		double currLoss;
-
-		while (improving) {
-			currLoss = swapNext();
-		}
-
-		//TODO: While cost is decreasing:
-			//TODO: cost = swapNext()
-			//TODO: if cost < last_loss
-				//TODO: current_loss = cost
-			//TODO: else:
-				//TODO: break;
-	}
-
 	/**
 	 * A greedy search for the next medoid considering the current medoids.
 	 *
@@ -164,6 +145,23 @@ public class KMedoidsPAM implements KClustering {
 		return (avgLosses.mul(-1)).argMax().getInt();
 	}
 
+	private void swap(INDArray data) {
+		//TODO: Calculate cost of medoids from build step.
+
+		boolean improving = true;
+		double bestLoss = getTotalAvgLoss(data);
+		double currLoss;
+
+		while (improving) {
+			currLoss = swapNext(data);
+			if (currLoss < bestLoss){
+				bestLoss = currLoss;
+			} else {
+				break;
+			}
+		}
+	}
+
 	private double swapNext(INDArray data){
 		// Get the cartesian product, that is all pairs of candidates (x, m) to swap.
 		// Then, convert to array list because we cannot index into a set, but we need to later.
@@ -190,7 +188,7 @@ public class KMedoidsPAM implements KClustering {
 				runningLoss += d;
 			}
 
-			// calculate average drop in cost of the current swap.
+			// calculate average drop in cost/dissimilarity of the current swap.
 			avgLosses.put(0, xToSwap, runningLoss / X.size());
 			// put the candidate medoid back.
 			medoids.add(mToSwap);
@@ -201,20 +199,7 @@ public class KMedoidsPAM implements KClustering {
 		medoids.remove(pairToSwap.get(0));
 		medoids.add(pairToSwap.get(1));
 
-
-			//TODO: for each x_j in X
-				//TODO: compute d = min(d(x_i, x_j), d(m_c(x_j), x_j)) --> note: second distance must exclude current medoid m
-				//TODO: total_d += d;
-			//TODO: average_loss[i] = total_d / len(MX)
-
-		//TODO: swap = argmin(average_loss)
-		//TODO: swapCost = average_loss[swap]
-
-		//TODO: add x_i to M
-		//TODO: remove m from M
-
-		//TODO: return swapCost;
-		return -1.0;
+		return avgLosses.getInt(swapPairIdx);
 	}
 
 	private int getClosestMedoid(int j, INDArray data) {
