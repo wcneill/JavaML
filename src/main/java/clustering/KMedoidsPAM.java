@@ -12,13 +12,15 @@ import org.knowm.xchart.XYChartBuilder;
 import org.knowm.xchart.XYSeries;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
-import org.nd4j.linalg.ops.transforms.Transforms;
 import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.io.csv.CsvReadOptions;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class KMedoidsPAM implements KClustering {
 
@@ -31,9 +33,10 @@ public class KMedoidsPAM implements KClustering {
 	/* The clusters within the data.
 	Each internal list contains the indexes corresponding to the data that belongs to it.*/
 	private final List<List<Integer>> clusters;
-	/* The similarity function used to fit the data to a Laplacian matrix. */
+	/* The similarity function used to fit the data to a Laplacian matrix. Note that larger values should indicate
+	greater similarity. */
 	private final Function similarityFunc;
-	/*A similarity matrix to be computed based on input data*/
+	/*A dissimilarity matrix to be computed based on input data and a similarity function*/
 	private Table<Integer, Integer, Double> simMatrix;
 
 	public KMedoidsPAM(Function f) {
@@ -52,44 +55,23 @@ public class KMedoidsPAM implements KClustering {
 		setK(8);
 	}
 
+	/**
+	 *  Assigns each point in the data to a cluster via the PAM algorithm.
+	 * @param data
+	 */
 	@Override
 	public void fit(INDArray data) {
-		//TODO: Get similarity matrix
 		init(data);
-		//TODO: Build Step
-		build(data);
-		//TODO: Swap Step
+		build();
 		swap();
-
-		for (int x : Sets.difference(X, medoids)){
-			int closestMedoid = getClosestMedoid(x);
-			for (List<Integer> cluster : clusters) {
-				if (cluster.contains(closestMedoid)) {
-					cluster.add(x);
-				}
-			}
-		}
+		assign();
 	}
 
-	@Override
-	public List<List<Integer>> getClusters() {
-		return clusters;
-	}
-
-	@Override
-	public void setK(int k) {
-		clusters.clear();
-		this.k = k;
-		for (int i = 0; i < k; i ++){
-			clusters.add(new ArrayList<Integer>());
-		}
-	}
-
-	@Override
-	public void setTrials(int n) {
-		// To satisfy interface?
-	}
-
+	/**
+	 * Initializes the algorithm by creating a dissimilarity matrix from the given similarity function.
+	 *
+	 * @param data The data to cluster.
+	 */
 	private void init(INDArray data) {
 
 		// TODO initialize set X with integer indexes of data.
@@ -111,7 +93,7 @@ public class KMedoidsPAM implements KClustering {
 	 * The build step of the PAM algorithm. Greedily assigns k-medoids.
 	 *
 	 */
-	private void build(INDArray data) {
+	private void build() {
 
 		getFirstMedoid();
 
@@ -125,6 +107,40 @@ public class KMedoidsPAM implements KClustering {
 		for (int m : medoids) {
 			clusters.get(c).add(m);
 			c++;
+		}
+	}
+
+	/**
+	 * The swap step of the PAM algorithm. While loss decreases, this method tests each pair (x, m)
+	 * where x is not a medoid and m is. Keeps the swaps that result in a the best loss.
+	 */
+	private void swap() {
+
+		//TODO: Calculate cost of medoids from build step.
+		double bestLoss = getTotalAvgLoss();
+		double currLoss;
+
+		//TODO: While swapping results in improvement:
+		int i = 0;
+		currLoss = swapNext(bestLoss);
+		while (currLoss < bestLoss) {
+			bestLoss = currLoss;
+			currLoss = swapNext(bestLoss);
+			System.out.println(i++);
+		}
+	}
+
+	/**
+	 * Assign each non-medoid point to the cluster containing the closest medoid.
+	 */
+	private void assign() {
+		for (int x : Sets.difference(X, medoids)){
+			int closestMedoid = getClosestMedoid(x);
+			for (List<Integer> cluster : clusters) {
+				if (cluster.contains(closestMedoid)) {
+					cluster.add(x);
+				}
+			}
 		}
 	}
 
@@ -187,21 +203,11 @@ public class KMedoidsPAM implements KClustering {
 		return bestMedoid;
 	}
 
-	private void swap() {
-
-		//TODO: Calculate cost of medoids from build step.
-		boolean improving = true;
-		double bestLoss = getTotalAvgLoss();
-		double currLoss;
-
-		//TODO: While swapping results in improvement:
-		currLoss = swapNext(bestLoss);
-		while (currLoss < bestLoss) {
-			bestLoss = currLoss;
-			currLoss = swapNext(bestLoss);
-		}
-	}
-
+	/**
+	 * Performs a single swap based on an exhaustive search for the swap pair that lowers dissimilarity the most.
+	 * @param bestAverageLoss
+	 * @return
+	 */
 	private double swapNext(double bestAverageLoss){
 		// Get all pairs of candidates (x, m) to swap.
 		Set<List<Integer>> mCrossX = Sets.cartesianProduct(medoids, Sets.difference(X, medoids));
@@ -239,6 +245,30 @@ public class KMedoidsPAM implements KClustering {
 		return bestAverageLoss;
 	}
 
+	@Override
+	public List<List<Integer>> getClusters() {
+		return clusters;
+	}
+
+	@Override
+	public void setK(int k) {
+		clusters.clear();
+		this.k = k;
+		for (int i = 0; i < k; i ++){
+			clusters.add(new ArrayList<Integer>());
+		}
+	}
+
+	@Override
+	public void setTrials(int n) {
+		// To satisfy interface?
+	}
+
+	/**
+	 * Returns the closest medoid to the point at index j in the data.
+	 * @param j The index of the point in the data for which to find the closest medoid.
+	 * @return The index of the closest medoid.
+	 */
 	private int getClosestMedoid(int j) {
 
 		double bestSimilarity = Double.MAX_VALUE;
@@ -271,7 +301,7 @@ public class KMedoidsPAM implements KClustering {
 	public static void main(String[] args) {
 		// --------------- Read in CSV Data -------------//
 		tech.tablesaw.api.Table df = null;
-		String path = "iris.data";
+		String path = "clusters_simple.csv";
 
 		CsvReadOptions options =
 			CsvReadOptions.builder(path)
@@ -286,8 +316,8 @@ public class KMedoidsPAM implements KClustering {
 		}
 
 		// ------ Separate independent and dependent variables -----//
-		Column<String> labels = (Column<String>) df.column("C4");
-		df.removeColumns("C4");
+//		Column<String> labels = (Column<String>) df.column("C4");
+//		df.removeColumns("C4");
 		double[][] data = df.as().doubleMatrix();
 
 		// ----------- Get independent data into Ndarray ----------//
@@ -309,7 +339,7 @@ public class KMedoidsPAM implements KClustering {
 			}
 			i++;
 		}
-		df.addColumns(labels, preds);
+		df.addColumns(preds);
 		System.out.println(df.structure());
 		System.out.println(df);
 
@@ -326,8 +356,8 @@ public class KMedoidsPAM implements KClustering {
 				df.doubleColumn("Predictions").isEqualTo(j)
 			);
 
-			double[] xData = type.doubleColumn(2).asDoubleArray();
-			double[] yData = type.doubleColumn(3).asDoubleArray();
+			double[] xData = type.doubleColumn(0).asDoubleArray();
+			double[] yData = type.doubleColumn(1).asDoubleArray();
 
 			String seriesName = String.format("Classification %d", j);
 			chart.addSeries(seriesName, xData, yData);
@@ -335,8 +365,8 @@ public class KMedoidsPAM implements KClustering {
 
 		int[] idxs = Ints.toArray(pam.medoids);
 		INDArray medoids = input.getRows(idxs).transpose();
-		double[] x = medoids.getRow(2).toDoubleVector();
-		double[] y = medoids.getRow(3).toDoubleVector();
+		double[] x = medoids.getRow(0).toDoubleVector();
+		double[] y = medoids.getRow(1).toDoubleVector();
 		chart.addSeries("Medoids", x, y);
 		new SwingWrapper<>(chart).displayChart();
 	}
