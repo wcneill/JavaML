@@ -2,8 +2,10 @@ package clustering;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import com.google.common.collect.Table;
 import com.google.common.primitives.Ints;
 import functions.Function;
+import functions.GaussianSimilarity;
 import org.apache.commons.compress.utils.Lists;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
@@ -24,6 +26,8 @@ public class KMedoidsPAM implements KClustering {
 	private final List<List<Integer>> clusters;
 	/* The similarity function used to fit the data to a Laplacian matrix. */
 	private final Function similarityFunc;
+	/*A similarity matrix to be computed based on input data*/
+	private Table<Integer, Integer, Double> simMatrix;
 
 	public KMedoidsPAM(Function f) {
 		this.similarityFunc = f;
@@ -32,8 +36,17 @@ public class KMedoidsPAM implements KClustering {
 		setK(8);
 	}
 
+	public KMedoidsPAM() {
+		this.similarityFunc = new GaussianSimilarity();
+		this.medoids = new HashSet<>();
+		this.clusters = new ArrayList<>();
+		setK(8);
+	}
+
 	@Override
 	public void fit(INDArray data) {
+		//TODO: Get similarity matrix
+		init(data);
 		//TODO: Build Step
 		build(data);
 		//TODO: Swap Step
@@ -59,15 +72,27 @@ public class KMedoidsPAM implements KClustering {
 		// To satisfy interface?
 	}
 
+	private void init(INDArray data) {
+
+		// TODO initialize set X with integer indexes of data.
+		int[] idxArr = Nd4j.arange(data.rows()).data().asInt();
+		this.X = Sets.newHashSet(Ints.asList(idxArr));
+
+		//TODO build similarity matrix
+		for (int i = 0; i < data.rows(); i++){
+			for (int j = i + 1; j < data.rows(); j++){
+				double similarity = similarityFunc.compute(data.getRow(i), data.getRow(j));
+				simMatrix.put(i, j, similarity);
+			}
+		}
+	}
+
 	/**
 	 * Initializes the first medoid of the dataset by exhaustively iterating through every
 	 * candidate and finding the value that maximises similarity to all other data points.
-	 *
-	 * @param data The dataset that is being clustered.
 	 */
-	private void init(INDArray data) {
-		int[] idxArr = Nd4j.arange(data.rows()).data().asInt();
-		this.X = Sets.newHashSet(Ints.asList(idxArr));
+	private void getFirstMedoid() {
+
 		Set<Integer> candidate;
 
 		double bestScore = Double.MAX_VALUE;
@@ -77,8 +102,8 @@ public class KMedoidsPAM implements KClustering {
 		for (int x : X){
 			currScore = 0;
 			candidate = Sets.newHashSet(x);
-			for (Integer x_j : Sets.difference(X, candidate)) {
-				currScore += similarityFunc.compute(data.getRow(x), data.getRow(x_j));
+			for (int x_j : Sets.difference(X, candidate)) {
+				currScore += simMatrix.get(x, x_j);
 			}
 			if (currScore < bestScore) {
 				bestScore = currScore;
@@ -94,23 +119,29 @@ public class KMedoidsPAM implements KClustering {
 	 * @param data The data to cluster.
 	 */
 	private void build(INDArray data) {
-		//TODO: Greedy init medoid l=0
-		init(data);
-		//TODO: For medoid_l, l=1...k
+
+		getFirstMedoid();
+
 		for (int i = 1; i < k; i++){
 			//TODO: greedily assign next medoid.
 			medoids.add(getNextMedoid(data));
 		}
 
 		//TODO: assign each medoid to the cluster it represents;
+		int c = 0;
 		for (int m : medoids) {
-			clusters.get(m).add(m);
+			clusters.get(c).add(m);
+			c++;
 		}
 
-		//TODO: assign each data point to the cluster with the closest medoid;
-		for (int i : X){
-			int m = getClosestMedoid(i, data);
-			clusters.get(m).add(i);
+		//TODO: assign each non-medoid to the cluster with the closest medoid;
+		for (int x : Sets.difference(X, medoids)){
+			int closestMedoid = getClosestMedoid(x);
+			for (List<Integer> cluster : clusters) {
+				if (cluster.contains(closestMedoid)) {
+					cluster.add(x);
+				}
+			}
 		}
 	}
 
@@ -122,9 +153,9 @@ public class KMedoidsPAM implements KClustering {
 	 */
 	private int getNextMedoid(INDArray data){
 
-		int searchSize = X.size() - medoids.size();
-		INDArray avgLosses = Nd4j.create(searchSize);
 		double runningLoss;
+		double bestAverageLoss = Double.MAX_VALUE;
+		int bestMedoid = -1;
 
 		//TODO: for x_i in X - M:
 		for (int i : Sets.difference(X, medoids)) {
@@ -132,30 +163,39 @@ public class KMedoidsPAM implements KClustering {
 
 			//TODO: for x_j in X:
 			for (int j : X) {
-
-				// The distances d2 could be pre-computed and cached to make this operation O(kn^2) instead of O(k^2n^2)
-				int m = getClosestMedoid(j, data);
-				double d1 = similarityFunc.compute(data.getRow(i), data.getRow(j));
-				double d2 = similarityFunc.compute(data.getRow(m), data.getRow(j));
+				int m = getClosestMedoid(j);
+				double d1 = simMatrix.get(i, j);
+				double d2 = simMatrix.get(m, j);
 				double d = Math.min(d1, d2);
 				runningLoss += d;
 			}
-			avgLosses.put(0, i, runningLoss / X.size());
+
+			// TODO: See if the loss has decreased, update current best medoid if so.
+			if (runningLoss < bestAverageLoss) {
+				bestAverageLoss = runningLoss;
+				bestMedoid = i;
+			}
 		}
-		return (avgLosses.mul(-1)).argMax().getInt();
+		return bestMedoid;
 	}
 
-	private void swap(INDArray data) {
-		//TODO: Calculate cost of medoids from build step.
+	private void swap() {
 
+		//TODO: Calculate cost of medoids from build step.
 		boolean improving = true;
-		double bestLoss = getTotalAvgLoss(data);
+		double bestLoss = getTotalAvgLoss();
 		double currLoss;
 
+		//TODO: While swapping results in improvement:
+
+
+
 		while (improving) {
-			currLoss = swapNext(data);
+			// TODO Swap best pair
+			currLoss = swapNext();
 			if (currLoss < bestLoss){
 				bestLoss = currLoss;
+				// TODO update cluster assignments.
 			} else {
 				break;
 			}
@@ -166,6 +206,7 @@ public class KMedoidsPAM implements KClustering {
 		// Get the cartesian product, that is all pairs of candidates (x, m) to swap.
 		// Then, convert to array list because we cannot index into a set, but we need to later.
 		Set<List<Integer>> product = Sets.cartesianProduct(medoids, Sets.difference(X, medoids));
+
 		ArrayList<List<Integer>> MX = Lists.newArrayList(product.iterator());
 		INDArray avgLosses = Nd4j.create(MX.size());
 		double runningLoss;
@@ -202,23 +243,15 @@ public class KMedoidsPAM implements KClustering {
 		return avgLosses.getInt(swapPairIdx);
 	}
 
-	private int getClosestMedoid(int j, INDArray data) {
+	private int getClosestMedoid(int j) {
 
-		// TODO: get the indexes of the current medoids in the data.
-		int[] idxs = Ints.toArray(this.medoids);
-
-		// TODO: get the current datapoint for which to find the closest medoid
-		INDArray object = data.getRow(j);
-
-		double similarity;
-		double bestSim = Double.MAX_VALUE;
+		double bestSimilarity = Double.MAX_VALUE;
 		int closestMedoid = -1;
-
-		// TODO: Find the shortest distance from point j to any medoid.
-		for (int m : idxs) {
-			similarity = similarityFunc.compute(object, data.getRow(m));
-			if (similarity < bestSim){
-				bestSim = similarity;
+		//TODO: get the indexes of the current medoids in the data.
+		for (int m : medoids) {
+			double similarity = simMatrix.get(j, m);
+			if (similarity < bestSimilarity){
+				bestSimilarity = similarity;
 				closestMedoid = m;
 			}
 		}

@@ -98,7 +98,8 @@ public class SpectralClustering {
             model.fit(uPrime);
             fit = true;
         } else {
-            System.out.println("Please use the setK() method before running fit().");
+            throw new IllegalStateException("Please setK() before running fit(). Note that some internal models will" +
+                "require k to be set independently of SpectralClustering.");
         }
 
     }
@@ -136,13 +137,11 @@ public class SpectralClustering {
 
         // For each data point (row)
         for (int i = 0; i < input.rows(); i++) {
-            int j = i + 1;
 
             // For all other data points (rows) calculate similarity score between data points
-            while (j < input.rows()) {
+            for (int j = i + 1; j < input.rows(); j++) {
                 double simScore = this.SimilarityFunction.compute(input.getRow(i), input.getRow(j));
                 similarity.put(i, j, simScore);
-                j++;
             }
         }
         return similarity;
@@ -176,7 +175,6 @@ public class SpectralClustering {
      */
     public void setK(int k) {
         this.k = k;
-        this.model.setK(k);
         fit = false;
     }
 
@@ -268,6 +266,11 @@ public class SpectralClustering {
         // --------------  Run Spectral Clustering --------------//
         KMeans km = new KMeans();
         km.setTrials(10);
+        km.setK(3);
+
+//
+//        KMedoidsPAM pam = new KMedoidsPAM();
+//        pam.setK(3);
         SpectralClustering sc = new SpectralClustering(km);
         sc.setK(3);
         sc.fit(input);
