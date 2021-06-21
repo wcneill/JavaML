@@ -1,16 +1,23 @@
 package clustering;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 import com.google.common.primitives.Ints;
 import functions.Function;
 import functions.GaussianSimilarity;
-import org.apache.commons.compress.utils.Lists;
+import org.knowm.xchart.SwingWrapper;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.XYSeries;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.ops.transforms.Transforms;
+import tech.tablesaw.api.DoubleColumn;
+import tech.tablesaw.columns.Column;
+import tech.tablesaw.io.csv.CsvReadOptions;
 
+import java.io.IOException;
 import java.util.*;
 
 public class KMedoidsPAM implements KClustering {
@@ -33,6 +40,7 @@ public class KMedoidsPAM implements KClustering {
 		this.similarityFunc = f;
 		this.medoids = new HashSet<>();
 		this.clusters = new ArrayList<>();
+		this.simMatrix = HashBasedTable.create();
 		setK(8);
 	}
 
@@ -40,6 +48,7 @@ public class KMedoidsPAM implements KClustering {
 		this.similarityFunc = new GaussianSimilarity();
 		this.medoids = new HashSet<>();
 		this.clusters = new ArrayList<>();
+		this.simMatrix = HashBasedTable.create();
 		setK(8);
 	}
 
@@ -50,7 +59,16 @@ public class KMedoidsPAM implements KClustering {
 		//TODO: Build Step
 		build(data);
 		//TODO: Swap Step
-		swap(data);
+		swap();
+
+		for (int x : Sets.difference(X, medoids)){
+			int closestMedoid = getClosestMedoid(x);
+			for (List<Integer> cluster : clusters) {
+				if (cluster.contains(closestMedoid)) {
+					cluster.add(x);
+				}
+			}
+		}
 	}
 
 	@Override
@@ -80,10 +98,33 @@ public class KMedoidsPAM implements KClustering {
 
 		//TODO build similarity matrix
 		for (int i = 0; i < data.rows(); i++){
+			simMatrix.put(i, i, -1 * similarityFunc.compute(data.getRow(i), data.getRow(i)));
 			for (int j = i + 1; j < data.rows(); j++){
 				double similarity = similarityFunc.compute(data.getRow(i), data.getRow(j));
-				simMatrix.put(i, j, similarity);
+				simMatrix.put(i, j, -1 * similarity);
+				simMatrix.put(j, i, -1 * similarity);
 			}
+		}
+	}
+
+	/**
+	 * The build step of the PAM algorithm. Greedily assigns k-medoids.
+	 *
+	 */
+	private void build(INDArray data) {
+
+		getFirstMedoid();
+
+		for (int i = 1; i < k; i++){
+			//TODO: greedily assign next medoid.
+			medoids.add(getNextMedoid());
+		}
+
+		//TODO: assign each medoid to the cluster it represents;
+		int c = 0;
+		for (int m : medoids) {
+			clusters.get(c).add(m);
+			c++;
 		}
 	}
 
@@ -114,44 +155,11 @@ public class KMedoidsPAM implements KClustering {
 	}
 
 	/**
-	 * The build step of the PAM algorithm. Greedily assigns k-medoids.
-	 *
-	 * @param data The data to cluster.
-	 */
-	private void build(INDArray data) {
-
-		getFirstMedoid();
-
-		for (int i = 1; i < k; i++){
-			//TODO: greedily assign next medoid.
-			medoids.add(getNextMedoid(data));
-		}
-
-		//TODO: assign each medoid to the cluster it represents;
-		int c = 0;
-		for (int m : medoids) {
-			clusters.get(c).add(m);
-			c++;
-		}
-
-		//TODO: assign each non-medoid to the cluster with the closest medoid;
-		for (int x : Sets.difference(X, medoids)){
-			int closestMedoid = getClosestMedoid(x);
-			for (List<Integer> cluster : clusters) {
-				if (cluster.contains(closestMedoid)) {
-					cluster.add(x);
-				}
-			}
-		}
-	}
-
-	/**
 	 * A greedy search for the next medoid considering the current medoids.
 	 *
-	 * @param data The data from which the medoids are determined.
 	 * @return the index in data of the next medoid.
 	 */
-	private int getNextMedoid(INDArray data){
+	private int getNextMedoid(){
 
 		double runningLoss;
 		double bestAverageLoss = Double.MAX_VALUE;
@@ -171,8 +179,8 @@ public class KMedoidsPAM implements KClustering {
 			}
 
 			// TODO: See if the loss has decreased, update current best medoid if so.
-			if (runningLoss < bestAverageLoss) {
-				bestAverageLoss = runningLoss;
+			if ((runningLoss / X.size()) < bestAverageLoss) {
+				bestAverageLoss = runningLoss / X.size();
 				bestMedoid = i;
 			}
 		}
@@ -187,60 +195,48 @@ public class KMedoidsPAM implements KClustering {
 		double currLoss;
 
 		//TODO: While swapping results in improvement:
-
-
-
-		while (improving) {
-			// TODO Swap best pair
-			currLoss = swapNext();
-			if (currLoss < bestLoss){
-				bestLoss = currLoss;
-				// TODO update cluster assignments.
-			} else {
-				break;
-			}
+		currLoss = swapNext(bestLoss);
+		while (currLoss < bestLoss) {
+			bestLoss = currLoss;
+			currLoss = swapNext(bestLoss);
 		}
 	}
 
-	private double swapNext(INDArray data){
-		// Get the cartesian product, that is all pairs of candidates (x, m) to swap.
-		// Then, convert to array list because we cannot index into a set, but we need to later.
-		Set<List<Integer>> product = Sets.cartesianProduct(medoids, Sets.difference(X, medoids));
-
-		ArrayList<List<Integer>> MX = Lists.newArrayList(product.iterator());
-		INDArray avgLosses = Nd4j.create(MX.size());
+	private double swapNext(double bestAverageLoss){
+		// Get all pairs of candidates (x, m) to swap.
+		Set<List<Integer>> mCrossX = Sets.cartesianProduct(medoids, Sets.difference(X, medoids));
 		double runningLoss;
+		List<Integer> bestPair = null;
 
-		//TODO: for each (m, x_i) in MX:
-		for (List<Integer> pair : MX) {
-			int mToSwap = pair.get(0);
-			int xToSwap = pair.get(1);
+		//TODO: for each (m, x_i) candidate swap in in M x X/M:
+		for (List<Integer> pair : mCrossX) {
+
 			runningLoss = 0;
+			int mCandidate = pair.get(0);
+			int xCandidate = pair.get(1);
+			medoids.remove(mCandidate);
 
-			// temporarily remove candidate medoid in order to test swap with non-medoid candidate.
-			medoids.remove(mToSwap);
-
-			// calculate the reduction in cost of this swap.
+			// calculate effect of this swap.
 			for (int j : X) {
-				int m = getClosestMedoid(j, data);
-				double d1 = similarityFunc.compute(data.getRow(xToSwap), data.getRow(j));
-				double d2 = similarityFunc.compute(data.getRow(m), data.getRow(j));
+				int m = getClosestMedoid(j);
+				double d1 = simMatrix.get(xCandidate, j);
+				double d2 = simMatrix.get(m, j);
 				double d = Math.min(d1, d2);
 				runningLoss += d;
 			}
 
-			// calculate average drop in cost/dissimilarity of the current swap.
-			avgLosses.put(0, xToSwap, runningLoss / X.size());
-			// put the candidate medoid back.
-			medoids.add(mToSwap);
+			medoids.add(mCandidate);
+
+			if (runningLoss / X.size() < bestAverageLoss){
+				bestAverageLoss = runningLoss / X.size();
+				bestPair = pair;
+			}
 		}
-
-		int swapPairIdx = avgLosses.mul(-1).argMax().getInt();
-		List<Integer> pairToSwap = MX.get(swapPairIdx);
-		medoids.remove(pairToSwap.get(0));
-		medoids.add(pairToSwap.get(1));
-
-		return avgLosses.getInt(swapPairIdx);
+		if (bestPair != null) {
+			medoids.remove(bestPair.get(0));
+			medoids.add(bestPair.get(1));
+		}
+		return bestAverageLoss;
 	}
 
 	private int getClosestMedoid(int j) {
@@ -261,41 +257,87 @@ public class KMedoidsPAM implements KClustering {
 	/**
 	 * Finds the total average distance between each cluster's medoid and the points belonging to those clusters.
 	 *
-	 * @param data the data being clustered.
 	 * @return The sum of similarities of all points to their medoids, divided by the number of points.
 	 */
-	private double getTotalAvgLoss(INDArray data) {
+	private double getTotalAvgLoss() {
 		double similaritySum = 0;
-		for (int m : medoids) {
-			// indexes of all the data points belonging to this cluster.
-			int[] idxs = clusters.get(m).stream().mapToInt(Integer::intValue).toArray();
-			INDArray medoidObject = data.getRow(m).reshape(1, data.columns());
-
-			//Calculate the sum of similarities between each point and this cluster's medoid.
-			for (int x : idxs) {
-				similaritySum += similarityFunc.compute(data.getRow(x), medoidObject);
-			}
+		for (int x : Sets.difference(X, medoids)) {
+			int m = getClosestMedoid(x);
+			similaritySum += simMatrix.get(m, x);
 		}
 		return similaritySum / k;
 	}
 
 	public static void main(String[] args) {
-		INDArray a = Nd4j.createFromArray(new double[]{1, 1, 1}).reshape(1, 3);
-		INDArray b = Nd4j.createFromArray(new double[]{2, 2, 2}).reshape(1, 3);
-		INDArray c = Nd4j.createFromArray(new double[]{3, 3, 3}).reshape(1, 3);
-		c = Nd4j.concat(0, b, c);
-		System.out.println(c);
+		// --------------- Read in CSV Data -------------//
+		tech.tablesaw.api.Table df = null;
+		String path = "iris.data";
 
-		INDArray distances = Transforms.allEuclideanDistances(a, c, 1);
-		System.out.println(distances);
+		CsvReadOptions options =
+			CsvReadOptions.builder(path)
+				.separator(',')
+				.header(false)
+				.build();
 
-		System.out.println("hooo aaaa!");
-		System.out.println(distances);
-		System.out.println(distances.sumNumber());
-		System.out.println(distances.meanNumber());
-		double n = 0;
-		n += (double) distances.sumNumber();
-		System.out.println(n);
+		try {
+			df = tech.tablesaw.api.Table.read().usingOptions(options);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// ------ Separate independent and dependent variables -----//
+		Column<String> labels = (Column<String>) df.column("C4");
+		df.removeColumns("C4");
+		double[][] data = df.as().doubleMatrix();
+
+		// ----------- Get independent data into Ndarray ----------//
+		INDArray input = Nd4j.createFromArray(data);
+
+		// --------------------- Run K-means ----------------------//
+		KMedoidsPAM pam = new KMedoidsPAM();
+		pam.setK(3);
+		pam.fit(input);
+
+		// ------------ Append Predictions as New Column ---------//
+		DoubleColumn preds = DoubleColumn.create("Predictions", df.rowCount());
+
+		int i = 0;
+		for (List<Integer> cluster : pam.clusters) {
+			int[] idxs = cluster.stream().mapToInt(Integer::valueOf).toArray();
+			for (int ix : idxs) {
+				preds.set(ix, i);
+			}
+			i++;
+		}
+		df.addColumns(labels, preds);
+		System.out.println(df.structure());
+		System.out.println(df);
+
+
+		// ------------------- Visualize Results -------------------- //
+		tech.tablesaw.api.Table type;
+		XYChart chart = new XYChartBuilder().width(1200).height(800).build();
+		chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
+
+
+		for (int j = 0; j < 3; j++) {
+
+			type = df.where(
+				df.doubleColumn("Predictions").isEqualTo(j)
+			);
+
+			double[] xData = type.doubleColumn(2).asDoubleArray();
+			double[] yData = type.doubleColumn(3).asDoubleArray();
+
+			String seriesName = String.format("Classification %d", j);
+			chart.addSeries(seriesName, xData, yData);
+		}
+
+		int[] idxs = Ints.toArray(pam.medoids);
+		INDArray medoids = input.getRows(idxs).transpose();
+		double[] x = medoids.getRow(2).toDoubleVector();
+		double[] y = medoids.getRow(3).toDoubleVector();
+		chart.addSeries("Medoids", x, y);
+		new SwingWrapper<>(chart).displayChart();
 	}
-
 }

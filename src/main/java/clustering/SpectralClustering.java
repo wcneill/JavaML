@@ -80,7 +80,6 @@ public class SpectralClustering {
 
             //TODO get eigenvector matrix U from Laplacian.
             INDArray eigenvectors = laplacian.dup();
-            System.out.println(eigenvectors.dataType());
             this.eigenvalues = Eigen.symmetricGeneralizedEigenvalues(eigenvectors);
             System.out.println("Eigenvalues: ");
             System.out.println(this.eigenvalues);
@@ -261,17 +260,15 @@ public class SpectralClustering {
 
         // ----------- Get independent data into Ndarray ----------//
         INDArray input = Nd4j.createFromArray(data);
-        System.out.println(input.dataType());
 
         // --------------  Run Spectral Clustering --------------//
-        KMeans km = new KMeans();
-        km.setTrials(10);
-        km.setK(3);
+//        KMeans km = new KMeans();
+//        km.setTrials(10);
+//        km.setK(3);
 
-//
-//        KMedoidsPAM pam = new KMedoidsPAM();
-//        pam.setK(3);
-        SpectralClustering sc = new SpectralClustering(km);
+        KMedoidsPAM pam = new KMedoidsPAM();
+        pam.setK(3);
+        SpectralClustering sc = new SpectralClustering(pam);
         sc.setK(3);
         sc.fit(input);
 
