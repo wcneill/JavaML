@@ -29,74 +29,6 @@ public class KMeans implements KClustering {
 		this.clusters = new ArrayList<>();
 	}
 
-	public static void main(String[] args) {
-
-		// --------------- Read in CSV Data -------------//
-		Table df = null;
-		String path = "iris.data";
-
-		CsvReadOptions options =
-			CsvReadOptions.builder(path)
-				.separator(',')
-				.header(false)
-				.build();
-
-		try {
-			df = Table.read().usingOptions(options);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		// ------ Separate independent and dependent variables -----//
-		Column<String> labels = (Column<String>) df.column("C4");
-		df.removeColumns("C4");
-		double[][] data = df.as().doubleMatrix();
-
-		// ----------- Get independent data into Ndarray ----------//
-		INDArray input = Nd4j.createFromArray(data);
-
-		// --------------------- Run K-means ----------------------//
-		KMeans km = new KMeans();
-		km.setK(3);
-		km.fit(input);
-
-		// ------------ Append Predictions as New Column ---------//
-		DoubleColumn preds = DoubleColumn.create("Predictions", df.rowCount());
-
-		int i = 0;
-		for (List<Integer> cluster : km.clusters) {
-			int[] idxs = cluster.stream().mapToInt(Integer::valueOf).toArray();
-			for (int ix : idxs) {
-				preds.set(ix, i);
-			}
-			i++;
-		}
-		df.addColumns(labels, preds);
-		System.out.println(df.structure());
-		System.out.println(df);
-
-
-		// ------------------- Visualize Results -------------------- //
-		Table type;
-		XYChart chart = new XYChartBuilder().width(1200).height(800).build();
-		chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
-
-
-		for (int j = 0; j < 3; j++) {
-
-			type = df.where(
-				df.doubleColumn("Predictions").isEqualTo(j)
-			);
-
-			double[] xData = type.doubleColumn(2).asDoubleArray();
-			double[] yData = type.doubleColumn(3).asDoubleArray();
-
-			String seriesName = String.format("Classification %d", j);
-			chart.addSeries(seriesName, xData, yData);
-		}
-		new SwingWrapper<>(chart).displayChart();
-	}
-
 	/**
 	 * Runs the K-means algorithm the number of times determined by `trials`, selecting the best run
 	 * based on
@@ -106,12 +38,13 @@ public class KMeans implements KClustering {
 	public void fit(INDArray data) {
 
 		double bestVariance = Double.MAX_VALUE;
-		double totalVariance = 0;
+		double totalVariance;
 		INDArray bestCentroids = null;
 
 		System.out.println("Clustering: " + trials + " trials");
 		for (int i = 0; i < trials; i++) {
 			clusters.clear();
+			totalVariance = 0;
 			run(data);
 
 			for (List<Integer> cluster : clusters) {
@@ -264,5 +197,73 @@ public class KMeans implements KClustering {
 			cluster.clear();
 		}
 		assign(data);
+	}
+
+	public static void main(String[] args) {
+
+		// --------------- Read in CSV Data -------------//
+		Table df = null;
+		String path = "clusters_simple.csv";
+
+		CsvReadOptions options =
+			CsvReadOptions.builder(path)
+				.separator(',')
+				.header(false)
+				.build();
+
+		try {
+			df = Table.read().usingOptions(options);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// ------ Separate independent and dependent variables -----//
+//		Column<String> labels = (Column<String>) df.column("C4");
+//		df.removeColumns("C4");
+		double[][] data = df.as().doubleMatrix();
+
+		// ----------- Get independent data into Ndarray ----------//
+		INDArray input = Nd4j.createFromArray(data);
+
+		// --------------------- Run K-means ----------------------//
+		KMeans km = new KMeans();
+		km.setK(3);
+		km.fit(input);
+
+		// ------------ Append Predictions as New Column ---------//
+		DoubleColumn preds = DoubleColumn.create("Predictions", df.rowCount());
+
+		int i = 0;
+		for (List<Integer> cluster : km.clusters) {
+			int[] idxs = cluster.stream().mapToInt(Integer::valueOf).toArray();
+			for (int ix : idxs) {
+				preds.set(ix, i);
+			}
+			i++;
+		}
+		df.addColumns(preds);
+		System.out.println(df.structure());
+		System.out.println(df);
+
+
+		// ------------------- Visualize Results -------------------- //
+		Table type;
+		XYChart chart = new XYChartBuilder().width(1200).height(800).build();
+		chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
+
+
+		for (int j = 0; j < 3; j++) {
+
+			type = df.where(
+				df.doubleColumn("Predictions").isEqualTo(j)
+			);
+
+			double[] xData = type.doubleColumn(0).asDoubleArray();
+			double[] yData = type.doubleColumn(1).asDoubleArray();
+
+			String seriesName = String.format("Classification %d", j);
+			chart.addSeries(seriesName, xData, yData);
+		}
+		new SwingWrapper<>(chart).displayChart();
 	}
 }

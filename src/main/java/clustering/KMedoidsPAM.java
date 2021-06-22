@@ -301,7 +301,8 @@ public class KMedoidsPAM implements KClustering {
 	public static void main(String[] args) {
 		// --------------- Read in CSV Data -------------//
 		tech.tablesaw.api.Table df = null;
-		String path = "clusters_simple.csv";
+		String path = "clusters_simple_v2.csv";
+		int k = 4;
 
 		CsvReadOptions options =
 			CsvReadOptions.builder(path)
@@ -325,7 +326,7 @@ public class KMedoidsPAM implements KClustering {
 
 		// --------------------- Run K-means ----------------------//
 		KMedoidsPAM pam = new KMedoidsPAM();
-		pam.setK(3);
+		pam.setK(k);
 		pam.fit(input);
 
 		// ------------ Append Predictions as New Column ---------//
@@ -350,7 +351,7 @@ public class KMedoidsPAM implements KClustering {
 		chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
 
 
-		for (int j = 0; j < 3; j++) {
+		for (int j = 0; j < k; j++) {
 
 			type = df.where(
 				df.doubleColumn("Predictions").isEqualTo(j)

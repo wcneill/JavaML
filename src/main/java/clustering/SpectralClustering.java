@@ -64,83 +64,6 @@ public class SpectralClustering {
 		this.fit = false;
 	}
 
-	public static void main(String[] args) {
-		// --------------- Read in CSV Data -------------//
-		Table df = null;
-		String path = "iris.data";
-
-		CsvReadOptions options =
-			CsvReadOptions.builder(path)
-				.separator(',')
-				.header(false)
-				.build();
-
-		try {
-			df = Table.read().usingOptions(options);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		// ------ Separate independent and dependent variables -----//
-		Column<String> labels = (Column<String>) df.column("C4");
-		df.removeColumns("C4");
-		double[][] data = df.as().doubleMatrix();
-
-		// ----------- Get independent data into Ndarray ----------//
-		INDArray input = Nd4j.createFromArray(data);
-
-		// --------------  Run Spectral Clustering --------------//
-		KMedoidsPAM pam = new KMedoidsPAM();
-		pam.setK(3);
-		SpectralClustering sc = new SpectralClustering(pam);
-		sc.setK(3);
-		sc.fit(input);
-
-		// ------------ Append Predictions as New Column ---------//
-		DoubleColumn preds = DoubleColumn.create("Predictions", df.rowCount());
-
-		int i = 0;
-		for (List<Integer> cluster : sc.getClusters()) {
-			int[] idxs = cluster.stream().mapToInt(Integer::valueOf).toArray();
-			for (int ix : idxs) {
-				preds.set(ix, i);
-			}
-			i++;
-		}
-		df.addColumns(labels, preds);
-		System.out.println(df.structure());
-		System.out.println(df);
-
-
-		// ------------------- Visualize Results -------------------- //
-		Table type;
-		XYChart chart = new XYChartBuilder().width(1200).height(800).build();
-		chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
-
-
-		for (int j = 0; j < 3; j++) {
-
-			type = df.where(
-				df.doubleColumn("Predictions").isEqualTo(j)
-			);
-
-			double[] xData = type.doubleColumn(2).asDoubleArray();
-			double[] yData = type.doubleColumn(3).asDoubleArray();
-
-			String seriesName = String.format("Classification %d", j);
-			chart.addSeries(seriesName, xData, yData);
-		}
-		System.out.println("Spectral gap at eigenvalue: " + sc.computeSpectralGap());
-		sc.plotEigs();
-		new SwingWrapper<>(chart).displayChart();
-
-		try {
-			Nd4j.saveBinary(sc.laplacian, new File("Laplacian"));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
 	/**
 	 * This method transforms the data into a reduced eigenspace, and then passes the reduced
 	 * spaces as input into the internal KClustering (K-Means or K-Medoids) model for final clustering.
@@ -309,5 +232,88 @@ public class SpectralClustering {
 			System.out.println("Ensure that you have set k and run fit before running this analysis.");
 		}
 
+	}
+
+	public static void main(String[] args) {
+		// --------------- Read in CSV Data -------------//
+		Table df = null;
+		String path = "clusters_simple_v2.csv";
+		int k = 4;
+
+		CsvReadOptions options =
+			CsvReadOptions.builder(path)
+				.separator(',')
+				.header(false)
+				.build();
+
+		try {
+			df = Table.read().usingOptions(options);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// ------ Separate independent and dependent variables -----//
+//		Column<String> labels = (Column<String>) df.column("C4");
+//		df.removeColumns("C4");
+		double[][] data = df.as().doubleMatrix();
+
+		// ----------- Get independent data into Ndarray ----------//
+		INDArray input = Nd4j.createFromArray(data);
+
+		// --------------  Run Spectral Clustering --------------//
+		KMedoidsPAM pam = new KMedoidsPAM();
+		pam.setK(k);
+		SpectralClustering sc = new SpectralClustering(pam);
+		sc.setK(k);
+		sc.fit(input);
+
+//		KMeans km = new KMeans();
+//		km.setK(3);
+//		SpectralClustering sc = new SpectralClustering(km);
+//		sc.setK(3);
+//		sc.fit(input);
+
+		// ------------ Append Predictions as New Column ---------//
+		DoubleColumn preds = DoubleColumn.create("Predictions", df.rowCount());
+
+		int i = 0;
+		for (List<Integer> cluster : sc.getClusters()) {
+			int[] idxs = cluster.stream().mapToInt(Integer::valueOf).toArray();
+			for (int ix : idxs) {
+				preds.set(ix, i);
+			}
+			i++;
+		}
+		df.addColumns(preds);
+		System.out.println(df.structure());
+		System.out.println(df);
+
+
+		// ------------------- Visualize Results -------------------- //
+		Table type;
+		XYChart chart = new XYChartBuilder().width(1200).height(800).build();
+		chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
+
+
+		for (int j = 0; j < k; j++) {
+
+			type = df.where(
+				df.doubleColumn("Predictions").isEqualTo(j)
+			);
+
+			double[] xData = type.doubleColumn(0).asDoubleArray();
+			double[] yData = type.doubleColumn(1).asDoubleArray();
+			String seriesName = String.format("Classification %d", j);
+			chart.addSeries(seriesName, xData, yData);
+		}
+		System.out.println("Spectral gap at eigenvalue: " + sc.computeSpectralGap());
+		sc.plotEigs();
+		new SwingWrapper<>(chart).displayChart();
+
+		try {
+			Nd4j.saveBinary(sc.laplacian, new File("Laplacian"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
