@@ -237,8 +237,8 @@ public class SpectralClustering {
 	public static void main(String[] args) {
 		// --------------- Read in CSV Data -------------//
 		Table df = null;
-		String path = "clusters_simple_v2.csv";
-		int k = 4;
+		String path = "clusters_rings.csv";
+		int k = 2;
 
 		CsvReadOptions options =
 			CsvReadOptions.builder(path)

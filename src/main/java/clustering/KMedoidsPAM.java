@@ -56,12 +56,13 @@ public class KMedoidsPAM implements KClustering {
 	}
 
 	/**
-	 *  Assigns each point in the data to a cluster via the PAM algorithm.
-	 * @param data
+	 * This method takes a dissimilarity matrix describing the pairwise dissimilarities between points in the dataset.
+	 *
+	 * @param
 	 */
 	@Override
-	public void fit(INDArray data) {
-		init(data);
+	public void fit(INDArray simMatrix) {
+		init(simMatrix);
 		build();
 		swap();
 		assign();
@@ -91,7 +92,6 @@ public class KMedoidsPAM implements KClustering {
 
 	/**
 	 * The build step of the PAM algorithm. Greedily assigns k-medoids.
-	 *
 	 */
 	private void build() {
 
@@ -100,13 +100,6 @@ public class KMedoidsPAM implements KClustering {
 		for (int i = 1; i < k; i++){
 			//TODO: greedily assign next medoid.
 			medoids.add(getNextMedoid());
-		}
-
-		//TODO: assign each medoid to the cluster it represents;
-		int c = 0;
-		for (int m : medoids) {
-			clusters.get(c).add(m);
-			c++;
 		}
 	}
 
@@ -134,6 +127,14 @@ public class KMedoidsPAM implements KClustering {
 	 * Assign each non-medoid point to the cluster containing the closest medoid.
 	 */
 	private void assign() {
+		// assign each medoid to the cluster it represents;
+		int c = 0;
+		for (int m : medoids) {
+			clusters.get(c).add(m);
+			c++;
+		}
+
+		// assign each non-medoid to the cluster with the closest medoid.
 		for (int x : Sets.difference(X, medoids)){
 			int closestMedoid = getClosestMedoid(x);
 			for (List<Integer> cluster : clusters) {
